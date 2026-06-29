@@ -2,9 +2,11 @@ package com.kenect.contactsapi.contact;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -29,16 +31,31 @@ public class ContactService {
 	}
 
 	public List<Contact> getAllContacts() {
-		KenectContact[] contacts = restClient.get()
-				.uri(uriBuilder -> uriBuilder.path(contactsPath).queryParam("page", 1).queryParam("pageSize", 20).build())
+		ResponseEntity<KenectContact[]> firstPageResponse = restClient.get()
+				.uri(uriBuilder -> uriBuilder.path(contactsPath).queryParam("page", 1).build())
 				.retrieve()
-				.body(KenectContact[].class);
+				.toEntity(KenectContact[].class);
 
-		if (contacts == null) {
+		KenectContact[] firstPageContacts = firstPageResponse.getBody();
+		if (firstPageContacts == null) {
 			return List.of();
 		}
 
-		return Arrays.stream(contacts)
+		List<KenectContact> allContacts = new ArrayList<>(Arrays.asList(firstPageContacts));
+		int totalPages = resolveTotalPages(firstPageResponse.getHeaders());
+		for (int page = 2; page <= totalPages; page++) {
+			ResponseEntity<KenectContact[]> pageResponse = restClient.get()
+					.uri(uriBuilder -> uriBuilder.path(contactsPath).queryParam("page", page).build())
+					.retrieve()
+					.toEntity(KenectContact[].class);
+
+			KenectContact[] pageContacts = pageResponse.getBody();
+			if (pageContacts != null) {
+				allContacts.addAll(Arrays.asList(pageContacts));
+			}
+		}
+
+		return allContacts.stream()
 				.map(contact -> new Contact(
 						contact.id(),
 						contact.name(),
@@ -48,6 +65,19 @@ public class ContactService {
 						contact.updatedAt()
 				))
 				.toList();
+	}
+
+	private int resolveTotalPages(HttpHeaders headers) {
+		String totalPagesHeader = headers.getFirst("Total-Pages");
+		if (totalPagesHeader == null || totalPagesHeader.isBlank()) {
+			return 1;
+		}
+
+		try {
+			return Integer.parseInt(totalPagesHeader);
+		} catch (NumberFormatException exception) {
+			return 1;
+		}
 	}
 
 	private record KenectContact(
