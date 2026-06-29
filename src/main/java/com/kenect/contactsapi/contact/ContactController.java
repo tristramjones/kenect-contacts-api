@@ -15,7 +15,7 @@ public class ContactController {
 	}
 
 	@GetMapping("/contacts")
-	public List<Object> getAllContacts() {
+	public List<Contact> getAllContacts() {
 		return contactService.getAllContacts();
 	}
 }
