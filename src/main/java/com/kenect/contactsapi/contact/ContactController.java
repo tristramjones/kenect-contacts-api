@@ -1,7 +1,9 @@
 package com.kenect.contactsapi.contact;
 
 import java.util.List;
+import java.util.Optional;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -14,7 +16,11 @@ public class ContactController {
   }
 
   @GetMapping("/contacts")
-  public List<Contact> getAllContacts() {
+  public List<Contact> getContacts(
+      @RequestParam(name = "page", required = false) Optional<Integer> requestedPageNumber) {
+    if (requestedPageNumber.isPresent()) {
+      return contactService.getContactsForPage(requestedPageNumber.get());
+    }
     return contactService.getAllContacts();
   }
 }

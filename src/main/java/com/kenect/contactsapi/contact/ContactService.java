@@ -66,6 +66,27 @@ public class ContactService {
         .toList();
   }
 
+  public List<Contact> getContactsForPage(int pageNumber) {
+    ResponseEntity<KenectContact[]> pageResponse = fetchPage(pageNumber);
+
+    KenectContact[] pageContacts = pageResponse.getBody();
+    if (pageContacts == null) {
+      return List.of();
+    }
+
+    return Arrays.stream(pageContacts)
+        .map(
+            contact ->
+                new Contact(
+                    contact.id(),
+                    contact.name(),
+                    contact.email(),
+                    SOURCE,
+                    contact.createdAt(),
+                    contact.updatedAt()))
+        .toList();
+  }
+
   private ResponseEntity<KenectContact[]> fetchPage(int page) {
     try {
       return restClient
