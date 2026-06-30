@@ -17,6 +17,7 @@ import org.springframework.web.client.RestClientResponseException;
 public class ContactService {
 
   private static final String SOURCE = "KENECT_LABS";
+  private static final int PAGE_SIZE = 20;
 
   private final RestClient restClient;
   private final String contactsPath;
@@ -69,7 +70,13 @@ public class ContactService {
     try {
       return restClient
           .get()
-          .uri(uriBuilder -> uriBuilder.path(contactsPath).queryParam("page", page).build())
+          .uri(
+              uriBuilder ->
+                  uriBuilder
+                      .path(contactsPath)
+                      .queryParam("page", page)
+                      .queryParam("pageSize", PAGE_SIZE)
+                      .build())
           .retrieve()
           .toEntity(KenectContact[].class);
     } catch (RestClientResponseException exception) {
