@@ -18,9 +18,7 @@ public class ContactController {
   @GetMapping("/contacts")
   public List<Contact> getContacts(
       @RequestParam(name = "page", required = false) Optional<Integer> requestedPageNumber) {
-    if (requestedPageNumber.isPresent()) {
-      return contactService.getContactsForPage(requestedPageNumber.get());
-    }
-    return contactService.getAllContacts();
+    int pageNumber = requestedPageNumber.orElse(1);
+    return contactService.getContactsForPage(pageNumber);
   }
 }

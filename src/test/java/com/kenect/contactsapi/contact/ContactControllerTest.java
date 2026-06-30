@@ -19,13 +19,14 @@ class ContactControllerTest {
   }
 
   @Test
-  void testGetContactsWithoutPageReturnsAllContacts() {
+  void testGetContactsWithoutPageDefaultsToFirstPage() {
     List<Contact> result = controller.getContacts(Optional.empty());
 
     assertNotNull(result);
     assertEquals(2, result.size());
-    assertEquals("Test User 1", result.get(0).name());
+    assertEquals("Page 1 User 1", result.get(0).name());
     assertEquals("KENECT_LABS", result.get(0).source());
+    assertEquals(1, mockService.getLastRequestedPageNumber());
   }
 
   @Test
@@ -36,6 +37,7 @@ class ContactControllerTest {
 
     assertNotNull(result);
     assertEquals(0, result.size());
+    assertEquals(1, mockService.getLastRequestedPageNumber());
   }
 
   @Test
@@ -46,10 +48,12 @@ class ContactControllerTest {
     assertEquals(2, result.size());
     assertEquals("Page 2 User 1", result.get(0).name());
     assertEquals("KENECT_LABS", result.get(0).source());
+    assertEquals(2, mockService.getLastRequestedPageNumber());
   }
 
   private static class MockContactService extends ContactService {
     private boolean returnEmpty = false;
+    private Integer lastRequestedPageNumber;
 
     private MockContactService() {
       super("http://localhost", "/test", "token");
@@ -59,42 +63,29 @@ class ContactControllerTest {
       this.returnEmpty = returnEmpty;
     }
 
-    @Override
-    public List<Contact> getAllContacts() {
-      if (returnEmpty) {
-        return List.of();
-      }
-      return List.of(
-          new Contact(
-              1L,
-              "Test User 1",
-              "test1@example.com",
-              "KENECT_LABS",
-              "2020-01-01T00:00:00.000Z",
-              "2020-01-01T00:00:00.000Z"),
-          new Contact(
-              2L,
-              "Test User 2",
-              "test2@example.com",
-              "KENECT_LABS",
-              "2020-01-02T00:00:00.000Z",
-              "2020-01-02T00:00:00.000Z"));
+    public Integer getLastRequestedPageNumber() {
+      return lastRequestedPageNumber;
     }
 
     @Override
     public List<Contact> getContactsForPage(int pageNumber) {
+      lastRequestedPageNumber = pageNumber;
+      if (returnEmpty) {
+        return List.of();
+      }
+
       return List.of(
           new Contact(
-              3L,
-              "Page 2 User 1",
-              "page2user1@example.com",
+              (long) ((pageNumber - 1) * 2 + 1),
+              "Page " + pageNumber + " User 1",
+              "page" + pageNumber + "user1@example.com",
               "KENECT_LABS",
               "2020-01-03T00:00:00.000Z",
               "2020-01-03T00:00:00.000Z"),
           new Contact(
-              4L,
-              "Page 2 User 2",
-              "page2user2@example.com",
+              (long) ((pageNumber - 1) * 2 + 2),
+              "Page " + pageNumber + " User 2",
+              "page" + pageNumber + "user2@example.com",
               "KENECT_LABS",
               "2020-01-04T00:00:00.000Z",
               "2020-01-04T00:00:00.000Z"));
