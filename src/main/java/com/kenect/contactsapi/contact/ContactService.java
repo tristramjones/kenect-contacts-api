@@ -4,7 +4,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,10 +33,7 @@ public class ContactService {
 	}
 
 	public List<Contact> getAllContacts() {
-		ResponseEntity<KenectContact[]> firstPageResponse = restClient.get()
-				.uri(uriBuilder -> uriBuilder.path(contactsPath).queryParam("page", 1).build())
-				.retrieve()
-				.toEntity(KenectContact[].class);
+		ResponseEntity<KenectContact[]> firstPageResponse = fetchPage(1);
 
 		KenectContact[] firstPageContacts = firstPageResponse.getBody();
 		if (firstPageContacts == null) {
@@ -44,10 +43,7 @@ public class ContactService {
 		List<KenectContact> allContacts = new ArrayList<>(Arrays.asList(firstPageContacts));
 		int totalPages = resolveTotalPages(firstPageResponse.getHeaders());
 		for (int page = 2; page <= totalPages; page++) {
-			ResponseEntity<KenectContact[]> pageResponse = restClient.get()
-					.uri(uriBuilder -> uriBuilder.path(contactsPath).queryParam("page", page).build())
-					.retrieve()
-					.toEntity(KenectContact[].class);
+			ResponseEntity<KenectContact[]> pageResponse = fetchPage(page);
 
 			KenectContact[] pageContacts = pageResponse.getBody();
 			if (pageContacts != null) {
@@ -65,6 +61,19 @@ public class ContactService {
 						contact.updatedAt()
 				))
 				.toList();
+	}
+
+	private ResponseEntity<KenectContact[]> fetchPage(int page) {
+		try {
+			return restClient.get()
+					.uri(uriBuilder -> uriBuilder.path(contactsPath).queryParam("page", page).build())
+					.retrieve()
+					.toEntity(KenectContact[].class);
+		} catch (RestClientResponseException exception) {
+			throw new ContactUpstreamException("Kenect API returned an error response", exception);
+		} catch (ResourceAccessException exception) {
+			throw new ContactUpstreamException("Kenect API is unreachable", exception);
+		}
 	}
 
 	private int resolveTotalPages(HttpHeaders headers) {
