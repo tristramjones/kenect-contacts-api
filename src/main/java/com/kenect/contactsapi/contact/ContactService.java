@@ -3,6 +3,8 @@ package com.kenect.contactsapi.contact;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
@@ -78,6 +80,14 @@ public class ContactService {
   }
 
   private int resolveTotalPages(HttpHeaders headers) {
+    String linkHeader = headers.getFirst("Link");
+    if (linkHeader != null && !linkHeader.isBlank()) {
+      Integer lastPageNum = extractPageNumberFromLink(linkHeader, "last");
+      if (lastPageNum != null) {
+        return lastPageNum;
+      }
+    }
+
     String totalPagesHeader = headers.getFirst("Total-Pages");
     if (totalPagesHeader == null || totalPagesHeader.isBlank()) {
       return 1;
@@ -88,6 +98,38 @@ public class ContactService {
     } catch (NumberFormatException exception) {
       return 1;
     }
+  }
+
+  private Integer extractPageNumberFromLink(String linkHeader, String rel) {
+    String rfc8288LinkPattern =
+        "<([^>]*?)>\\s*;\\s*rel=['\"]?" + Pattern.quote(rel) + "['\"]?";
+    Pattern linkHeaderRegex = Pattern.compile(rfc8288LinkPattern);
+    Matcher linkMatcher = linkHeaderRegex.matcher(linkHeader);
+
+    if (linkMatcher.find()) {
+      String linkedResourceUrl = linkMatcher.group(1);
+      return extractPageNumberFromUrl(linkedResourceUrl);
+    }
+
+    return null;
+  }
+
+  private Integer extractPageNumberFromUrl(String linkedResourceUrl) {
+    String pageQueryParamPattern = "(?:[?&]|^)page=(\\d+)";
+    Pattern pageParameterRegex = Pattern.compile(pageQueryParamPattern);
+    Matcher pageParameterMatcher = pageParameterRegex.matcher(linkedResourceUrl);
+
+    if (pageParameterMatcher.find()) {
+      String extractedPageNumberString = pageParameterMatcher.group(1);
+      try {
+        int parsedPageNumber = Integer.parseInt(extractedPageNumberString);
+        return parsedPageNumber;
+      } catch (NumberFormatException exception) {
+        return null;
+      }
+    }
+
+    return null;
   }
 
   private record KenectContact(
